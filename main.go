@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2025-Present Harry Randazzo
+// SPDX-FileCopyrightText: 2025-Present Contributors to lockoci
 
 // Package main is the entrypoint for the lockoci CLI
 package main
@@ -17,7 +17,7 @@ func main() {
 	flag.BoolVar(&help, "h", false, "Print this message and exit.")
 
 	var ver bool
-	flag.BoolVar(&ver, "v", false, "Print the version number of sizeoci and exit.")
+	flag.BoolVar(&ver, "v", false, "Print the version number of lockoci and exit.")
 
 	flag.Parse()
 
@@ -35,6 +35,6 @@ func main() {
 		fmt.Println(bi.Main.Version)
 		os.Exit(0)
 	}
-	
+
 	fmt.Println("lockoci")
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2021-Present The Zarf Authors
+// SPDX-FileCopyrightText: 2025-Present Contributors to lockoci
 
 package lock
 
@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/distribution/distribution/v3/configuration"
-	"github.com/distribution/distribution/v3/registry"
+	disribution "github.com/distribution/distribution/v3/registry"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory" // used for docker test registry
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"oras.land/oras-go/v2/registry"
 )
 
 // SetupInMemoryRegistry sets up an in-memory registry on localhost and returns the address.
@@ -27,8 +27,8 @@ func SetupInMemoryRegistry(t *testing.T, port int) string {
 	config.Log.Level = "error"
 	logrus.SetOutput(io.Discard)
 	config.HTTP.DrainTimeout = 10 * time.Second
-	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]interface{}{}}
-	reg, err := registry.NewRegistry(t.Context(), config)
+	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]any{}}
+	reg, err := disribution.NewRegistry(t.Context(), config)
 	require.NoError(t, err)
 	//nolint:errcheck // ignore
 	go reg.ListenAndServe()
@@ -42,8 +42,13 @@ func TestLock(t *testing.T) {
 		_ = os.Remove(filename)
 	})
 	err := os.WriteFile(filename, []byte(content), 0600)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	reg := SetupInMemoryRegistry(t, 5005)
-	err = Lock(t.Context(), fmt.Sprintf("%s/%s", reg, "testrepo"), filename)
-	assert.NoError(t, err)
+	ref := registry.Reference{
+		Registry:   reg,
+		Repository: "testrepo",
+		Reference:  "latest",
+	}
+	err = Lock(t.Context(), ref, filename)
+	require.NoError(t, err)
 }
