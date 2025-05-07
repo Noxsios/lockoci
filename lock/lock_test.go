@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/distribution/distribution/v3/configuration"
-	disribution "github.com/distribution/distribution/v3/registry"
+	"github.com/distribution/distribution/v3/registry"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory" // used for docker test registry
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"oras.land/oras-go/v2/registry"
+	orasRegistry "oras.land/oras-go/v2/registry"
+	"oras.land/oras-go/v2/registry/remote"
 )
 
 // SetupInMemoryRegistry sets up an in-memory registry on localhost and returns the address.
@@ -28,22 +29,31 @@ func SetupInMemoryRegistry(t *testing.T, port int) string {
 	logrus.SetOutput(io.Discard)
 	config.HTTP.DrainTimeout = 10 * time.Second
 	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]any{}}
-	reg, err := disribution.NewRegistry(t.Context(), config)
+	reg, err := registry.NewRegistry(t.Context(), config)
 	require.NoError(t, err)
-	//nolint:errcheck // ignore
-	go reg.ListenAndServe()
+	go func() {
+		err := reg.ListenAndServe()
+		require.NoError(t, err)
+	}()
 	return fmt.Sprintf("localhost:%d", port)
 }
 
 func TestLock(t *testing.T) {
 	content := "Hello World!"
 
-	reg := SetupInMemoryRegistry(t, 5005)
-	ref := registry.Reference{
-		Registry:   reg,
+	registryURL := SetupInMemoryRegistry(t, 5005)
+
+	r, err := remote.NewRegistry(registryURL)
+	require.NoError(t, err)
+	r.PlainHTTP = true
+	err = r.Ping(t.Context())
+	require.NoError(t, err)
+
+	ref := orasRegistry.Reference{
+		Registry:   registryURL,
 		Repository: "testrepo",
 		Reference:  "latest",
 	}
-	err := Lock(t.Context(), ref, strings.NewReader(content))
+	err = Lock(t.Context(), ref, strings.NewReader(content))
 	require.NoError(t, err)
 }
