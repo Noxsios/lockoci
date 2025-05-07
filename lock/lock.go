@@ -7,7 +7,7 @@ package lock
 import (
 	"bytes"
 	"context"
-	"os"
+	"io"
 
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/registry"
@@ -21,16 +21,18 @@ const (
 )
 
 // Lock uploads a file to an OCI registry, then locks it
-func Lock(ctx context.Context, ref registry.Reference, path string) error {
+func Lock(ctx context.Context, ref registry.Reference, reader io.Reader) error {
 	repo, err := remote.NewRepository(ref.String())
 	if err != nil {
 		return err
 	}
 	repo.PlainHTTP = true
-	b, err := os.ReadFile(path)
+
+	b, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
+
 	expected := content.NewDescriptorFromBytes(StateFileMediaType, b)
 	err = repo.Push(ctx, expected, bytes.NewReader(b))
 	if err != nil {

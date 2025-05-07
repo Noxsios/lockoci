@@ -6,7 +6,7 @@ package lock
 import (
 	"fmt"
 	"io"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,19 +36,14 @@ func SetupInMemoryRegistry(t *testing.T, port int) string {
 }
 
 func TestLock(t *testing.T) {
-	content := "hello world"
-	filename := "helloworld.txt"
-	t.Cleanup(func() {
-		_ = os.Remove(filename)
-	})
-	err := os.WriteFile(filename, []byte(content), 0600)
-	require.NoError(t, err)
+	content := "Hello World!"
+
 	reg := SetupInMemoryRegistry(t, 5005)
 	ref := registry.Reference{
 		Registry:   reg,
 		Repository: "testrepo",
 		Reference:  "latest",
 	}
-	err = Lock(t.Context(), ref, filename)
+	err := Lock(t.Context(), ref, strings.NewReader(content))
 	require.NoError(t, err)
 }
