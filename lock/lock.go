@@ -26,8 +26,10 @@ const (
 	AnnotationLockState = "org.opentofu.state.locked"
 )
 
+// ErrLocked is a sentinel error when another client has locked the manifest for editing
 var ErrLocked = errors.New("manifest is currently locked for editing")
 
+// Acquire attempts to acquire a lock on a ref
 func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Reference, force bool) (v1.Manifest, error) {
 	var stateInitialized bool
 
@@ -35,7 +37,8 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 		return v1.Manifest{}, fmt.Errorf("reference is blank")
 	}
 
-	err := repo.Tags(ctx, "", func(tags []string) error {
+	// ignoring the error here
+	_ = repo.Tags(ctx, "", func(tags []string) error {
 		if slices.Contains(tags, ref.Reference) {
 			stateInitialized = true
 		}
@@ -44,7 +47,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 
 	if !stateInitialized {
 		emptyConfig := v1.DescriptorEmptyJSON
-		err = repo.Push(ctx, emptyConfig, bytes.NewReader([]byte(`{}`)))
+		err := repo.Push(ctx, emptyConfig, bytes.NewReader([]byte(`{}`)))
 		if err != nil {
 			return v1.Manifest{}, err
 		}
@@ -103,7 +106,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 		return v1.Manifest{}, err
 	}
 
-	if isLocked(manifest) && force == false {
+	if isLocked(manifest) && !force {
 		return v1.Manifest{}, ErrLocked
 	}
 
@@ -124,6 +127,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 	return manifest, nil
 }
 
+// PushState pushes the contents of the reader as a new entry to the ref
 func PushState(ctx context.Context, repo *remote.Repository, ref registry.Reference, reader io.Reader, force bool) error {
 	b, err := io.ReadAll(reader)
 	if err != nil {

@@ -3,10 +3,13 @@
 build:
 	go build .
 
+test:
+	go test ./... -v
+
 clean:
 	rm -f lockoci
 
 lint:
 	golangci-lint run ./...
 
-.PHONY: build clean lint
+.PHONY: build test clean lint

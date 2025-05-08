@@ -32,8 +32,7 @@ func SetupInMemoryRegistry(t *testing.T, port int) string {
 	reg, err := registry.NewRegistry(t.Context(), config)
 	require.NoError(t, err)
 	go func() {
-		err := reg.ListenAndServe()
-		require.NoError(t, err)
+		_ = reg.ListenAndServe()
 	}()
 	return fmt.Sprintf("localhost:%d", port)
 }

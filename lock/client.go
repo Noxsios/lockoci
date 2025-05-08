@@ -49,7 +49,7 @@ func (c *etagClient) Do(originalReq *http.Request) (*http.Response, error) {
 
 				fmt.Printf("> setting If-None-Match for %s to %s\n", lastTwo[1], etag)
 				// https://github.com/distribution/distribution/blob/95647cba1d992a4da614bbae725022b5215c98c4/internal/client/repository.go#L506
-				req.Header.Add(http.CanonicalHeaderKey("If-None-Match"), etag)
+				req.Header.Add("If-None-Match", etag)
 				// ^ but this is actually not respected anywhere in https://github.com/distribution/distribution/blob/95647cba1d992a4da614bbae725022b5215c98c4/registry/handlers/manifests.go#L238
 				//
 				// etag is only used in https://github.com/distribution/distribution/blob/95647cba1d992a4da614bbae725022b5215c98c4/registry/handlers/manifests.go#L132
