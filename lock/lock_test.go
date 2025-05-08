@@ -133,10 +133,9 @@ func triggerPushCollision(ctx context.Context, repo *remote.Repository) error {
 
 	m2Descriptor := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBytes)
 
-	// reset the etag client to wipe the stored etags and configure an incorrect one
+	// configure an incorrect etag
 	// this simulates another client already pushed to the tag
-	etc := &etagClient{}
-	etc.etags.Store("latest", fmt.Sprintf(`"%s"`, m2Descriptor.Digest.String()))
+	repo.Client.(*etagClient).etags.Store("latest", fmt.Sprintf(`"%s"`, m2Descriptor.Digest.String()))
 
 	// this should trigger an error but it won't
 	return repo.PushReference(ctx, m2Descriptor, bytes.NewReader(manifestBytes), repo.Reference.Reference)
