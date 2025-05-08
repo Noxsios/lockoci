@@ -16,7 +16,6 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote"
 )
 
@@ -30,16 +29,16 @@ const (
 var ErrLocked = errors.New("manifest is currently locked for editing")
 
 // Acquire attempts to acquire a lock on a ref
-func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Reference, force bool) (v1.Manifest, error) {
+func Acquire(ctx context.Context, repo *remote.Repository, force bool) (v1.Manifest, error) {
 	var stateInitialized bool
 
-	if ref.Reference == "" {
+	if repo.Reference.Reference == "" {
 		return v1.Manifest{}, fmt.Errorf("reference is blank")
 	}
 
 	// ignoring the error here
 	_ = repo.Tags(ctx, "", func(tags []string) error {
-		if slices.Contains(tags, ref.Reference) {
+		if slices.Contains(tags, repo.Reference.Reference) {
 			stateInitialized = true
 		}
 		return nil
@@ -88,7 +87,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 
 	var manifest v1.Manifest
 
-	currentManifestDesc, currentManifestReadCloser, err := repo.FetchReference(ctx, ref.Reference)
+	currentManifestDesc, currentManifestReadCloser, err := repo.FetchReference(ctx, repo.Reference.Reference)
 	if err != nil {
 		return v1.Manifest{}, err
 	}
@@ -119,7 +118,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 
 	manifestDescriptor := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBytes)
 	fmt.Println("locking manifest", manifestDescriptor.Digest)
-	err = repo.PushReference(ctx, manifestDescriptor, bytes.NewReader(manifestBytes), ref.Reference)
+	err = repo.PushReference(ctx, manifestDescriptor, bytes.NewReader(manifestBytes), repo.Reference.Reference)
 	if err != nil {
 		return v1.Manifest{}, err
 	}
@@ -128,7 +127,7 @@ func Acquire(ctx context.Context, repo *remote.Repository, ref registry.Referenc
 }
 
 // PushState pushes the contents of the reader as a new entry to the ref
-func PushState(ctx context.Context, repo *remote.Repository, ref registry.Reference, reader io.Reader, force bool) error {
+func PushState(ctx context.Context, repo *remote.Repository, reader io.Reader, force bool) error {
 	b, err := io.ReadAll(reader)
 	if err != nil {
 		return err
@@ -140,7 +139,7 @@ func PushState(ctx context.Context, repo *remote.Repository, ref registry.Refere
 		return err
 	}
 
-	manifest, err := Acquire(ctx, repo, ref, force)
+	manifest, err := Acquire(ctx, repo, force)
 	if err != nil {
 		return err
 	}
@@ -155,7 +154,7 @@ func PushState(ctx context.Context, repo *remote.Repository, ref registry.Refere
 
 	manifestDescriptor := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBytes)
 	fmt.Println("pushing state", expected.Digest, "manifest", manifestDescriptor.Digest)
-	err = repo.PushReference(ctx, manifestDescriptor, bytes.NewReader(manifestBytes), ref.Reference)
+	err = repo.PushReference(ctx, manifestDescriptor, bytes.NewReader(manifestBytes), repo.Reference.Reference)
 	if err != nil {
 		return err
 	}
