@@ -39,21 +39,30 @@ func SetupInMemoryRegistry(t *testing.T, port int) string {
 }
 
 func TestLock(t *testing.T) {
-	content := "Hello World!"
-
-	registryURL := SetupInMemoryRegistry(t, 5005)
-
-	r, err := remote.NewRegistry(registryURL)
-	require.NoError(t, err)
-	r.PlainHTTP = true
-	err = r.Ping(t.Context())
-	require.NoError(t, err)
+	registryURL := SetupInMemoryRegistry(t, 5007)
 
 	ref := orasRegistry.Reference{
 		Registry:   registryURL,
 		Repository: "testrepo",
 		Reference:  "latest",
 	}
-	err = Lock(t.Context(), ref, strings.NewReader(content))
+
+	repo, err := remote.NewRepository(ref.String())
+	require.NoError(t, err)
+	repo.PlainHTTP = true
+	repo.Client = &etagClient{}
+
+	err = PushState(t.Context(), repo, ref, strings.NewReader("Hello World!"), false)
+	require.NoError(t, err)
+
+	// acquire a lock but never unlock
+	_, err = Acquire(t.Context(), repo, ref, false)
+	require.NoError(t, err)
+
+	err = PushState(t.Context(), repo, ref, strings.NewReader("Why Hello There!"), false)
+	require.EqualError(t, err, ErrLocked.Error())
+
+	// force overwrite
+	err = PushState(t.Context(), repo, ref, strings.NewReader("Why Hello There!"), true)
 	require.NoError(t, err)
 }
