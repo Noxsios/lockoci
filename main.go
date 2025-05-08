@@ -5,11 +5,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"slices"
+	"syscall"
+
+	"github.com/noxsios/lockoci/lock"
+	"oras.land/oras-go/v2/registry/remote"
 )
 
 func main() {
@@ -18,6 +24,12 @@ func main() {
 
 	var ver bool
 	flag.BoolVar(&ver, "v", false, "Print the version number of lockoci and exit.")
+
+	var plainHTTP bool
+	flag.BoolVar(&plainHTTP, "plain-http", false, "Allow insecure connections to registry without SSL check")
+
+	var force bool
+	flag.BoolVar(&force, "force", false, "Overwrite statefile lock and push new state")
 
 	flag.Parse()
 
@@ -36,5 +48,31 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Println("lockoci")
+	if len(flag.Args()) > 2 || len(flag.Args()) == 0 {
+		fatal(fmt.Errorf("invalid number of args: want 2, got %d", len(flag.Args())))
+	}
+
+	repo, err := remote.NewRepository(flag.Args()[0])
+	if err != nil {
+		fatal(err)
+	}
+	repo.PlainHTTP = plainHTTP
+
+	ctx := context.Background()
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
+
+	f, err := os.Open(flag.Args()[1])
+	if err != nil {
+		fatal(err)
+	}
+
+	if err := lock.PushState(ctx, repo, f, force); err != nil {
+		fatal(err)
+	}
+}
+
+func fatal(err error) {
+	fmt.Fprintln(os.Stderr, err.Error())
+	os.Exit(1)
 }
